@@ -1,56 +1,272 @@
-# k8s
+#k8s
+
 k8s = kubernetes. 3 nginx deployments with grafana/promethes, dashboards, rolling restart
 
-please use https://github.com/ijayzo/terraformInstances as a guide to setting up and SSH'ing into instances using terraform (only difference is you need 3 instances here, and you will change the name on the aws console of the instances for ease of use) or you can manually create instances on the AWS console. Prefereable K8s instances should be bigger than T2/3. 
+please use https://github.com/ijayzo/terraformInstances as a guide to setting up and SSH'ing into instances using terraform (only difference is you need 3 instances here, and you will change the name on the aws console of the instances for ease of use) or you can manually create instances on the AWS console. Prefereable K8s instances should be bigger than T2/3.
 
 ---
 notes
-need to install k8s, network, container runtime as docker 
+need to install k8s, network, container runtime as docker
 
 https://infotechys.com/install-a-kubernetes-cluster-on-rhel-9/
 
 
 ---
-steps 
+step 1
 
-1) SSH into all 3 isntances or connect on the AWS console with the "EC2 Instance Connect". 
-2) On all instances:
-	- for docker as container runtime
-		
-	- for non docker =
-		+ Set SELinux in permissive mode (effectively disabling it). root access or sudo access. This is required to allow containers to access the host filesystem; for example, some cluster network plugins require that. You have to do this until SELinux support is improved in the kubelet.
-You can leave SELinux enabled if you know how to configure it but it may require settings that are not supported by kubeadm.
-			sudo setenforce 0
-			sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config 
-		+ Add K8s dnf repository
-			# This overwrites any existing configuration in /etc/yum.repos.d/kubernetes.repo
+- on all nodes, add kernel modules
+	
+	# install appropriate kernel headers on your system
+	+ sudo dnf install kernel-devel-$(uname -r)
+
+	# load necessary kernel modules req'ed by k8s. help w/ fuctionality and facilitate comm's w/i the k8s cluster (servers become prepared for k8s installation and can effectively manage networking and load balancing tasks w/i the cluster)
+	+ sudo modprobe br_netfilter
+	+ sudo modprobe ip_vs
+	+ sudo modprobe ip_vs_rr
+	+ sudo modprobe ip_vs_wrr
+	+ sudo modprobe ip_vs_sh
+	+ sudo modprobe overlay
+	 
+	# create config file (as the root)
+cat > /etc/modules-load.d/kubernetes.conf << EOF
+br_netfilter
+ip_vs
+ip_vs_rr
+ip_vs_wrr
+ip_vs_sh
+overlay
+EOF
+
+---
+
+step 2
+
+- on all nodes, configure systctl
+
+	# set specific systctl settings that k8s relies on (can update system's kernel parameters. here, we enable ipv4 packet forwarding, iptable to process bridged ipv4 & ipv6 traffic). "By setting these sysctl parameters, you ensure that your system is properly configured to support Kubernetes networking requirements and forwarding of network traffic within the cluster. These settings are essential for the smooth operation of Kubernetes networking components."
+
+````
+cat > /etc/sysctl.d/kubernetes.conf << EOF
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+```
+
+	# apply the changes 
+	+ sysctl --system
+
+---
+
+step 3
+
+- on all nodes, disable swap 
+
+	# disable swap on your server/worker node. then, turn off all swap devices (comment out the line that begins with "swap")
+	+ sudo swapoff -a
+	+ sed -e '/swap/s/^/#/g' -i /etc/fstab
+
+---
+
+step 4
+
+- on all nodes, install containerd
+
+	# before configuring containerd, we need to add docker repo to our system (will be usuing Docker CE) as it offers essential components for container management. then, must udpate the package cache. then,  install containerd.
+
+	+ sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+	+ sudo dnf makecache
+	+ sudo dnf -y install containerd.io
+
+---
+
+step 5
+
+- on all nodes, configure containerd
+	
+	#  "ensure optimal performance and compatibility with your environment. The configuration file for Containerd is located at /etc/containerd/config.toml". only small adjustments to enable Systemd Cgroup support, essential for proper container management. 
+	
+	# see the file with cat command. the next command then builds out the containerd cofig file and outputs the file again.
+	+ cat /etc/containerd/config.toml
+	+ sudo sh -c "containerd config default > /etc/containerd/config.toml" ; cat /etc/containerd/config.toml
+
+	# change SystemdCgroup variable in /etc/containerd/config.toml file to true. provides enhanced compatibility for managing containers w/i systemd env.
+	+ sudo vim /etc/containerd/config.toml
+	+ SystemdCgroup = true
+
+	# ensure containerd.service starts up and is enabled. must reboot. can confirm with status command.
+	+ sudo systemctl enable --now containerd.service
+	+ sudo systemctl reboot
+	+ sudo systemctl status containerd.service
+
+---
+
+step 6 
+
+- on all nodes, set firewall rules 
+	
+	# allow specific ports used by k8s components through the firewall. 6443 = Kubernetes API server. 2379-2380 = etcd server client API. 10250 = Kubelet API.10251	= kube-scheduler. 10252	= kube-controller-manager. 10255 = Read-only Kubelet API. 5473 = ClusterControlPlaneConfig API. 
+	+ sudo firewall-cmd --zone=public --permanent --add-port=6443/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=2379-2380/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=10250/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=10251/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=10252/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=10255/tcp
+	+ sudo firewall-cmd --zone=public --permanent --add-port=5473/tcp
+
+	# relaod firewall to apply changes 
+	+ sudo firewall-cmd --reload
+
+---
+
+step 7
+
+- on all nodes, install k8s components (kubelet, kuubeadm, kubectl) and add the k8s repo to your package manager
+
+	# add k8s repo to your package manager. 
 ```
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
 enabled=1
 gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
 exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF
 ```
-		+ install kubelet, kubeadm, and kubectl
-			sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
-		+ enable the kubelet service before running kubeadm
-			sudo systemctl enable --now kubelet
-3) on the master node, as root or using sudo:
-	sudo kubeadm init
-		upon successful initialization, 3 codes will be provided -> denoted with 1, 2, and 3 stars (*) -> (*) to set up the machine user as master. (***) to set up root of machine as the master. (***) to join the cluster created by the master (master needs to join as well)
-			(*) there will be a section stating "to start using your cluster, you need to run the following as a regular user" with the following commands:
-				mkdir -p $HOME/.kube
-				sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-				sudo chown $(id -u):$(id -g) $HOME/.kube/config
-			(**) "alternatively, if you are the root user, you can run":
-				export KUBECONFIG=/etc/kubernetes/admin.conf
-			(***) "Then you can join any number of worker nodes by running the folliwing on each as root:"
-				(given, just an example)
-				kubeadm join <ip>:<cidr block> --token <token> \ discovery-token-ca-cert-hash sha256:<token>				 
-all nodes, including master: 
-				
- 
+
+	# install k8s packages 
+	+ dnf makecache; dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
+	# start and enable kubelet service 
+	+ systemctl enable --now kubelet.service
+
+	# don't worry about any kubelet errors at this point. still need the join command.
+
+---
+
+step 8
+
+- on the master node, initialize the k8s control plane 
+	
+	# first pull necessary container images for the default container registry to store them locally; ensures all req'edimagesare available locally and can be used w/o relying on external registry during cluster setup. then initialize
+	+ sudo kubeadm config images pull
+	+ sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+	# setup kubeconfig file 
+	+ mkdir -p $HOME/.kube
+	+ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+	+ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+	# deploy pod network 
+	+ kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml
+
+	# download Calico resources manifest as a YAML. use one command or the other 
+	+ curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
+	+ wget https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
+	
+	# adjust the cidr setting in the custom resources file 
+	+ sed -i 's/cidr: 192\.168\.0\.0\/16/cidr: 10.244.0.0\/16/g' custom-resources.yaml
+	
+	# create the Calico custom resources 
+	+ kubectl create -f custom-resources.yaml
+
+---
+
+step 9
+
+- join the worker nodes to the cluster
+	
+	# on the master node, generate the join command along w/ a token. the worker nodes will use the token and the master node's ip address to connect to the cluster. 
+	+ sudo kubeadm token create --print-join-command	
+
+	# copy the join command outputted by the previous command that will include the token and the master node's ip. will look something like: 
+	+ sudo kubeadm join <MASTER_IP>:<MASTER_PORT> --token <TOKEN> --discovery-token-ca-cert-hash <DISCOVERY_TOKEN_CA_CERT_HASH>
+
+	# paste the join command onto every worker node that will be joining the cluster.
+
+	# on the master node, verify the worker nodes joined
+	+ kubectl get nodes
+
+---
+
+step 10
+
+- on the master node, nginx test deployment 
+
+	# use the following yaml manifest to deploy applications, such as nginx (as a test deployment). save as nginx-deployment.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+```
+
+	# apply the deployment file, name changes, using nginx-deployment.yaml
+	+ kubectl apply -f nginx-deployment.yaml
+
+	# check the status of the deployment 
+	+ kubectl get deployments
+
+	# verify that the nginx pods are running 
+	+ kubectl get pods
+
+---
+
+step 11
+
+- on the master node, expose the nginx to the external network using a k8s service
+
+	# save the yaml file (using nginx-service.yaml) 
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+```
+
+	# apply the service (LoadBalancer, which exposes the nginx deployment to the external network).
+	+ kubectl apply -f nginx-service.yaml
+
+	# attain the external ip address of the nginx service 
+	+ kubectl get service nginx-service
+	+ (use the given ip in a web browser to see the default nginx welcome page)
+
+	# more methods to expose the service in the link given at beginning of this readme
+
+
+
+
+
+
+
+
+
+
