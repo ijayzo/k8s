@@ -6,10 +6,36 @@ please use https://github.com/ijayzo/terraformInstances as a guide to setting up
 
 ---
 notes
-need to install k8s, network, container runtime as docker
 
-https://infotechys.com/install-a-kubernetes-cluster-on-rhel-9/
+# need to install k8s, network, container runtime as docker
 
+- https://infotechys.com/install-a-kubernetes-cluster-on-rhel-9/
+
+	Steps 1-11 = installing k8s, making cluster, and connecting nodes to cluster 
+
+	Also, scripts can be found in the repo to run all the commands from the below steps. script1all.sh is step 1-7. script2master.sh runs steps 8 and 9 on the master node; the output will be the join command to be used on the worker nodes. script3master will deploy 3 replicas of nginx exposed on port 80; but you need to create/copy the yaml deployment manifests.
+
+# need to install prometheus and grafana
+
+- https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
+
+	Starts at step 12
+
+# need to setup a dashboard
+
+- https://grafana.com/docs/grafana/latest/dashboards/
+
+# need to do a rolling restart 
+
+- 
+
+# additional: panel for alerts 
+
+- https://grafana.com/docs/grafana/latest/panels-visualizations/
+
+# Add additional endpoints to scrape, such as the Kubernetes API or kubelet metrics from the Kubernetes nodes. To see a fully configured Prometheus Kubernetes stack in action, refer to kube-prometheus.
+
+- https://github.com/prometheus-operator/kube-prometheus
 
 ---
 step 1
