@@ -255,6 +255,7 @@ spec:
 
 ```
 
+
 	# apply the deployment file, name changes, using nginx-deployment.yaml
 	+ kubectl apply -f nginx-deployment.yaml
 
