@@ -230,8 +230,8 @@ step 10
 
 	# use the following yaml manifest to deploy applications, such as nginx (as a test deployment). save as nginx-deployment.yaml
 
-```
 
+...
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -253,8 +253,8 @@ spec:
         image: nginx:latest
         ports:
         - containerPort: 80
+...
 
-```
 
 
 	# apply the deployment file, name changes, using nginx-deployment.yaml
@@ -274,8 +274,7 @@ step 11
 
 	# save the yaml file (using nginx-service.yaml) 
 
-```
-
+...
 apiVersion: v1
 kind: Service
 metadata:
@@ -288,8 +287,7 @@ spec:
       port: 80
       targetPort: 80
   type: LoadBalancer
-
-```
+...
 
 	# apply the service (LoadBalancer, which exposes the nginx deployment to the external network).
 	+ kubectl apply -f nginx-service.yaml
