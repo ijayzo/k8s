@@ -272,6 +272,7 @@ step 11
 	# save the yaml file (using nginx-service.yaml) 
 
 ```
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -284,6 +285,7 @@ spec:
       port: 80
       targetPort: 80
   type: LoadBalancer
+
 ```
 
 	# apply the service (LoadBalancer, which exposes the nginx deployment to the external network).
