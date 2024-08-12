@@ -252,6 +252,7 @@ spec:
         image: nginx:latest
         ports:
         - containerPort: 80
+
 ```
 
 	# apply the deployment file, name changes, using nginx-deployment.yaml
