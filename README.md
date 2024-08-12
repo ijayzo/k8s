@@ -28,6 +28,8 @@ step 1
 	+ sudo modprobe overlay
 	 
 	# create config file (as the root)
+
+```
 cat > /etc/modules-load.d/kubernetes.conf << EOF
 br_netfilter
 ip_vs
@@ -36,6 +38,7 @@ ip_vs_wrr
 ip_vs_sh
 overlay
 EOF
+```
 
 ---
 
@@ -124,6 +127,7 @@ step 7
 - on all nodes, install k8s components (kubelet, kuubeadm, kubectl) and add the k8s repo to your package manager
 
 	# add k8s repo to your package manager. 
+
 ```
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
@@ -237,6 +241,7 @@ step 11
 - on the master node, expose the nginx to the external network using a k8s service
 
 	# save the yaml file (using nginx-service.yaml) 
+
 ```
 apiVersion: v1
 kind: Service
@@ -260,13 +265,4 @@ spec:
 	+ (use the given ip in a web browser to see the default nginx welcome page)
 
 	# more methods to expose the service in the link given at beginning of this readme
-
-
-
-
-
-
-
-
-
 
