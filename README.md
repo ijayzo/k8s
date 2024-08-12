@@ -231,6 +231,7 @@ step 10
 	# use the following yaml manifest to deploy applications, such as nginx (as a test deployment). save as nginx-deployment.yaml
 
 ```
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
