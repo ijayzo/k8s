@@ -230,7 +230,7 @@ step 10
 
 	# use the following yaml manifest to deploy applications, such as nginx (as a test deployment). save as nginx-deployment.yaml
 
-```shell
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -273,7 +273,7 @@ step 11
 
 	# save the yaml file (using nginx-service.yaml) 
 
-```shell
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -352,7 +352,7 @@ step 16
 	+ cd operator_k8s
 
 	# Create a manifest file called prom_rbac.yaml. This creates a ServiceAccount called prometheus and binds it to the prometheus ClusterRole. The manifest grants the ClusterRole get, list, and watch Kubernetes API privileges.
-```shell
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -406,7 +406,7 @@ step 15
 - deploy Prometheus into the Cluster using the Operator.
 
 	# create a file called prometheus.yaml. 2-replica HA Prometheus deployment (plus the operator = 3 nodes).
-```shell
+```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
@@ -446,7 +446,7 @@ step 16
 - expose the Prometheus server as a service.
 
 	# create manifest file called prom_svc.yaml
-```shell
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -483,7 +483,7 @@ step 17
 - create a ServiceMonitor.
 
 	# create a file called prometheus_servicemonitor.yaml
-```shell
+```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
