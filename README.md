@@ -230,8 +230,7 @@ step 10
 
 	# use the following yaml manifest to deploy applications, such as nginx (as a test deployment). save as nginx-deployment.yaml
 
-
-...
+```shell
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -253,7 +252,7 @@ spec:
         image: nginx:latest
         ports:
         - containerPort: 80
-...
+```
 
 
 
@@ -274,7 +273,7 @@ step 11
 
 	# save the yaml file (using nginx-service.yaml) 
 
-...
+```shell
 apiVersion: v1
 kind: Service
 metadata:
@@ -287,8 +286,8 @@ spec:
       port: 80
       targetPort: 80
   type: LoadBalancer
-...
-
+```
+	
 	# apply the service (LoadBalancer, which exposes the nginx deployment to the external network).
 	+ kubectl apply -f nginx-service.yaml
 
@@ -297,4 +296,213 @@ spec:
 	+ (use the given ip in a web browser to see the default nginx welcome page)
 
 	# more methods to expose the service in the link given at beginning of this readme
+
+---
+
+step 12
+ 
+- ensure that the cluster has RBAC enabled
+
+	# run the following command
+	+ kubectl api-versions
+	
+	# check if the API version starts with rbac.authorization,
+	+ .rbac.authorization.k8s.io/v1
+	
+	# if not, please enable rbac
+	+ https://komodor.com/learn/kubernetes-rbac/#:~:text=RBAC%20is%20enabled%20by%20default,the%20command%20kubectl%20api%2Dversions.
+
+---
+
+step 13
+
+- create a grafana cloud account 
+
+	# https://grafana.com/auth/sign-up
+
+---
+
+step 14
+
+- create a Grafana Cloud access policy token with the metrics:write scope. To create a Grafana Cloud access policy, refer to Create a Grafana Cloud Access Policy. 
+
+	# https://grafana.com/docs/grafana-cloud/account-management/authentication-and-permissions/create-api-key/#create-a-grafana-cloud-access-policy 
+	+ metrics:write
+
+---
+
+step 15
+
+- Install Prometheus Operator into the Kubernetes Cluster.
+
+	# Install the Operator using the bundle.yaml file in the Prometheus Operator GitHub repository. bundle.yaml installs CRDs for Prometheus objects as well as a Prometheus Operator controller and service.
+	+ kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml
+
+	# Verify that the Prometheus Operator installation succeeded
+	+ kubectl get deploy
+
+---
+
+step 16
+
+- Configure RBAC permissions for Prometheus.
+
+	# Create a directory to store Kubernetes manifests, and cd into it
+	+ mkdir operator_k8s
+	+ cd operator_k8s
+
+	# Create a manifest file called prom_rbac.yaml. This creates a ServiceAccount called prometheus and binds it to the prometheus ClusterRole. The manifest grants the ClusterRole get, list, and watch Kubernetes API privileges.
+```shell
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: default
+```
+
+	# create the objects 
+	+ kubectl apply -f
+
+---
+step 15
+
+- deploy Prometheus into the Cluster using the Operator.
+
+	# create a file called prometheus.yaml. 2-replica HA Prometheus deployment (plus the operator = 3 nodes).
+```shell
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  image: quay.io/prometheus/prometheus:v2.22.1
+  nodeSelector:
+    kubernetes.io/os: linux
+  replicas: 2
+  resources:
+    requests:
+      memory: 400Mi
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus
+  version: v2.22.1
+  serviceMonitorSelector: {}
+```
+
+	# Deploy the manifest into your Cluster 
+	+ kubectl apply -f
+
+	# verify
+	+ kubectl get prometheus
+	
+	# check underlying pods
+	+ kubectl get pod
+
+---
+
+step 16
+
+- expose the Prometheus server as a service.
+
+	# create manifest file called prom_svc.yaml
+```shell
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  ports:
+  - name: web
+    port: 9090
+    targetPort: web
+  selector:
+    app.kubernetes.io/name: prometheus
+  sessionAffinity: ClientIP
+```
+
+	# Deploy the manifest into your Cluster
+	+ kubectl apply -f
+	
+	# verify
+	+ kubectl get service
+
+	# "To access the Prometheus server, forward a local port to the Prometheus service running inside of the Kubernetes Cluster"
+	+ kubectl port-forward svc/prometheus 9090
+
+	# Navigate to http://localhost:9090 to access the Prometheus interface
+
+	# Click Status, then Targets to see any configured scrape targets. Should be empty
+
+---
+
+step 17
+
+- create a ServiceMonitor.
+
+	# create a file called prometheus_servicemonitor.yaml
+```shell
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self
+  labels:
+    app: prometheus
+spec:
+  endpoints:
+  - interval: 30s
+    port: web
+  selector:
+    matchLabels:
+      app: prometheus
+```
+
+	# Deploy the manifest into your Cluster
+	+ kubectl apply -f prometheus_servicemonitor.yaml
+
+--- 
+
+
 
