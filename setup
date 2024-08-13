@@ -1,8 +1,8 @@
 ami-0aa8fc2422063977a
-1
+3
 0
-tag
-t2.micro
-key_pem
-terraform
+k8s
+t3.micro
+key_rhel_pem
+terraform-runner
 us-east-2

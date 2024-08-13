@@ -15,6 +15,8 @@ notes
 
 	Also, scripts can be found in the repo to run all the commands from the below steps. script1all.sh is step 1-7. script2master.sh runs steps 8 and 9 on the master node; the output will be the join command to be used on the worker nodes. script3master will deploy 3 replicas of nginx exposed on port 80; but you need to create/copy the yaml deployment manifests.
 
+	The scripts need execute permission. please use: chmod u+x <absolute path of script file>.sh
+	
 # need to install prometheus and grafana
 
 - https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
@@ -27,15 +29,18 @@ notes
 
 # need to do a rolling restart 
 
-- 
-
-# additional: panel for alerts 
-
-- https://grafana.com/docs/grafana/latest/panels-visualizations/
+- https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_restart/ 
 
 # Add additional endpoints to scrape, such as the Kubernetes API or kubelet metrics from the Kubernetes nodes. To see a fully configured Prometheus Kubernetes stack in action, refer to kube-prometheus.
 
 - https://github.com/prometheus-operator/kube-prometheus
+
+---
+to fix later
+
+change namespace away from default 
+
+
 
 ---
 step 1
@@ -254,8 +259,6 @@ spec:
         - containerPort: 80
 ```
 
-
-
 	# apply the deployment file, name changes, using nginx-deployment.yaml
 	+ kubectl apply -f nginx-deployment.yaml
 
@@ -326,8 +329,6 @@ step 14
 
 - create a Grafana Cloud access policy token with the metrics:write scope. To create a Grafana Cloud access policy, refer to Create a Grafana Cloud Access Policy. 
 
-	# https://grafana.com/docs/grafana-cloud/account-management/authentication-and-permissions/create-api-key/#create-a-grafana-cloud-access-policy 
-	+ metrics:write
 
 ---
 
@@ -352,6 +353,7 @@ step 16
 	+ cd operator_k8s
 
 	# Create a manifest file called prom_rbac.yaml. This creates a ServiceAccount called prometheus and binds it to the prometheus ClusterRole. The manifest grants the ClusterRole get, list, and watch Kubernetes API privileges.
+
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -406,6 +408,7 @@ step 15
 - deploy Prometheus into the Cluster using the Operator.
 
 	# create a file called prometheus.yaml. 2-replica HA Prometheus deployment (plus the operator = 3 nodes).
+
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
@@ -446,6 +449,7 @@ step 16
 - expose the Prometheus server as a service.
 
 	# create manifest file called prom_svc.yaml
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -483,6 +487,9 @@ step 17
 - create a ServiceMonitor.
 
 	# create a file called prometheus_servicemonitor.yaml
+
+	# create a file called prometheus_servicemonitor.yaml
+
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -504,5 +511,74 @@ spec:
 
 --- 
 
+step 18 
+
+- Forward a port to your Prometheus server and check its configuration for verification.
+	
+	# Find the name of the Prometheus service
+	+ kubectl --namespace default get service
+
+	# In the Prometheus interface:
+	+ Go to Status, then Targets. Should see 2 Prometheus replicas as scrape targets.
+	+ Go to Graph, in the Expression box type prometheus_http_requests_total
+
+--- 
+
+step 19
+
+- Create a Kubernetes Secret to store Grafana Cloud credentials
+
+	# you can create the Kubernetes Secret using a manifest file or directly using kubectl. Note: If you deployed your monitoring stack in a namespace other than default, append the -n flag with the appropriate namespace to the above command.
+	+ kubectl create secret generic kubepromsecret \
+  --from-literal=username=<your_grafana_cloud_prometheus_username>\
+  --from-literal=password='<your_grafana_cloud_access_policy_token>'
+
+---
+
+step 20
+
+- Configure Prometheus remote_write and metrics deduplication
+
+	# add the following to the end of your resource definition in the previously created prometheus.yaml file. Configure remote_write to send Cluster metrics to Grafana Cloud and to deduplicate metrics. The remote_write Prometheus feature allows you to send metrics to remote endpoints for long-term storage and aggregation. Grafana Cloud’s deduplication feature allows you to deduplicate metrics sent from high-availability Prometheus pairs, which reduces your active series usage
+
+```yaml
+. . .
+  remoteWrite:
+  - url: "<Your Metrics instance remote_write endpoint>"
+    basicAuth:
+      username:
+        name: kubepromsecret
+        key: username
+      password:
+        name: kubepromsecret
+        key: password
+  replicaExternalLabelName: "__replica__"
+  externalLabels:
+    cluster: "<choose_a_prom_cluster_name>"
+```
+	
+	# Deploy the manifest into your Cluster
+	+ kubectl apply -f prometheus.yaml
+
+	# may take a couple minutes, but navigate to http://localhost:9090 in your browser, and then Status and Configuration. Verify that the remote_write and external_labels blocks you appended earlier have propagated to your running Prometheus instances.
+
+---
+
+step 21
+
+	# Access your Prometheus metrics in Grafana Cloud
+	+ From the Cloud Portal, click Log In next to the Grafana card to log in to Grafana. Click Explore in the left-side menu. In the PromQL query box, enter the same metric you tested earlier, prometheus_http_requests_total, and press SHIFT + ENTER. You should see a graph of time-series data corresponding to different labels of the prometheus_http_requests_total metric. Grafana queries this data from the Grafana Cloud Metrics data store, not your local Cluster. Navigate to Kubernetes Monitoring, and click Configuration on the main menu. Click the Metrics status tab to view the data status. Your data begins populating in the view as the system components begin scraping and sending data to Grafana Cloud.
+
+---
+
+step 22 
+
+- create a dashboard - rows of single/grouped panels (visual representations of data/queries) organized to show similar data. we will be using variables to create the dashboards.
+
+	# ensure you have the right permissions
+	+ https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/
+
+	# 
+	+ 
 
 
