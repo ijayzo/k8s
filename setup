@@ -2,7 +2,7 @@ ami-0aa8fc2422063977a
 3
 0
 k8s
-t3.micro
+t3.small
 key_rhel_pem
 terraform-runner
 us-east-2

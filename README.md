@@ -573,12 +573,15 @@ step 21
 
 step 22 
 
-- create a dashboard - rows of single/grouped panels (visual representations of data/queries) organized to show similar data. we will be using variables to create the dashboards.
+- create a dashboard - rows of single/grouped panels (visual representations of data/queries) organized to show similar data. we will be using variables to create the dashboards. variables allow for one dashboard to be used by any of your clusters/instances just by changing the ip, instead of creating a new dashboard for each server. also, makes sure that your users can't change the panel settings.
 
 	# ensure you have the right permissions
 	+ https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/
 
-	# 
+	# within your grafana, make a new dashboard (or editing an old dashboard), and go to settings at the top. this is where you will find the variables section.
+	+ 
+	
+	#
 	+ 
 
 
