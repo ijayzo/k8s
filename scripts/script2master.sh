@@ -1,7 +1,7 @@
 #!
 clear
 sudo kubeadm config images pull
-sleep 5
+sleep 10
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 sleep 5
 mkdir -p $HOME/.kube
