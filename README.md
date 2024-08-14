@@ -13,7 +13,7 @@ notes
 
 	Steps 1-11 = installing k8s, making cluster, and connecting nodes to cluster 
 
-	Also, scripts can be found in the repo to run all the commands from the below steps. script1all.sh is step 1-7. script2master.sh runs steps 8 and 9 on the master node; the output will be the join command to be used on the worker nodes. script3master will deploy 3 replicas of nginx exposed on port 80; but you need to create/copy the yaml deployment manifests.
+	Also, scripts can be found in the repo to run all the commands from the below steps. script1all.sh is step 1-5 up to the reboot. script2all.sh is for after the reboot up until step 7. script2master.sh runs steps 8 and 9 on the master node; the output will be the join command to be used on the worker nodes. script3master will deploy 3 replicas of nginx exposed on port 80; but you need to create/copy the yaml deployment manifests.
 
 	The scripts need execute permission. please use: chmod u+x <absolute path of script file>.sh
 	
