@@ -4,7 +4,7 @@ clear
 sudo dnf install firewalld -y
 sleep 10
 sudo systemctl enable --now firewalld 
-sleep 3
+sleep 5
 echo
 sudo firewall-cmd --zone=public --permanent --add-port=6443/tcp
 sleep 2

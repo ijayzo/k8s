@@ -1,5 +1,9 @@
 #!
 clear
+sudo systemctl stop kubelet
+sleep 2
+sudo systemctl start kubelet
+sleep 2
 kubectl apply -f nginx-deployment.yaml
 sleep 5
 kubectl get deployments
