@@ -57,8 +57,8 @@ echo
 # echo "Note: If you deployed your monitoring stack in a namespace other than default, append the -n flag with the appropriate namespace to the below command."
 
 kubectl create secret generic kubepromsecret \
-  --from-literal=username=$grafUser isaiasjasso\
-  --from-literal=password='<your_grafana_cloud_access_policy_token>'
+	--from-literal=username=<your_grafana_cloud_prometheus_username>\
+      	--from-literal=password='<your_grafana_cloud_access_policy_token>'
 echo 
 echo 
 kubectl apply -f prometheus2.yaml

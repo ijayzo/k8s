@@ -22,6 +22,8 @@ notes
 - https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
 
 	Starts at step 12
+	
+	There is a script named grafana1master.sh that takes care of all the setup up to step 21.
 
 # need to setup a dashboard
 
